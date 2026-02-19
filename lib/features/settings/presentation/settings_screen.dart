@@ -1,14 +1,18 @@
+import 'package:car_360/core/providers/theme_provider.dart';
 import 'package:car_360/core/widgets/app_logo.dart';
 import 'package:car_360/core/widgets/app_scaffold.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeNotifierProvider);
+
     return AppScaffold(
       title: 'Settings',
       body: SingleChildScrollView(
@@ -25,7 +29,9 @@ class SettingsScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade900,
+                      color: themeMode == ThemeMode.dark
+                          ? Colors.blue.shade200
+                          : Colors.blue.shade900,
                     ),
                   ),
                   FutureBuilder<PackageInfo>(
@@ -44,6 +50,8 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 32.h),
+            _buildThemeSelection(context, ref),
+            SizedBox(height: 24.h),
             _buildSection(
               context,
               'About the App',
@@ -81,7 +89,37 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildThemeSelection(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeNotifierProvider);
+    final isDark = themeMode == ThemeMode.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Appearance',
+          style: TextStyle(
+            fontSize: 18.sp,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.blue.shade200 : Colors.blue.shade800,
+          ),
+        ),
+        SizedBox(height: 8.h),
+        SwitchListTile(
+          title: const Text('Dark Mode'),
+          subtitle: Text(isDark ? 'Dark theme enabled' : 'Light theme enabled'),
+          secondary: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
+          value: isDark,
+          onChanged: (value) {
+            ref.read(themeModeNotifierProvider.notifier).toggleTheme(value);
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildSection(BuildContext context, String title, String content) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -90,13 +128,19 @@ class SettingsScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.bold,
-            color: Colors.blue.shade800,
+            color: theme.brightness == Brightness.dark
+                ? Colors.blue.shade200
+                : Colors.blue.shade800,
           ),
         ),
         SizedBox(height: 8.h),
         Text(
           content,
-          style: TextStyle(fontSize: 14.sp, color: Colors.black87, height: 1.5),
+          style: TextStyle(
+            fontSize: 14.sp,
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8),
+            height: 1.5,
+          ),
         ),
       ],
     );

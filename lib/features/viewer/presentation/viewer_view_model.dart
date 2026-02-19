@@ -6,12 +6,14 @@ class ViewerState {
   final double zoomLevel;
   final Color? colorFilter;
   final bool isLoading;
+  final bool isPrecached;
 
   ViewerState({
-    this.currentIndex = 1,
+    this.currentIndex = 0,
     this.zoomLevel = 1.0,
     this.colorFilter,
     this.isLoading = false,
+    this.isPrecached = false,
   });
 
   ViewerState copyWith({
@@ -19,12 +21,14 @@ class ViewerState {
     double? zoomLevel,
     Color? colorFilter,
     bool? isLoading,
+    bool? isPrecached,
   }) {
     return ViewerState(
       currentIndex: currentIndex ?? this.currentIndex,
       zoomLevel: zoomLevel ?? this.zoomLevel,
       colorFilter: colorFilter ?? this.colorFilter,
       isLoading: isLoading ?? this.isLoading,
+      isPrecached: isPrecached ?? this.isPrecached,
     );
   }
 }
@@ -32,24 +36,18 @@ class ViewerState {
 class ViewerViewModel extends StateNotifier<ViewerState> {
   ViewerViewModel() : super(ViewerState());
 
-  void updateIndex(double dx, double screenWidth) {
-    // Sensitivity: how much drag corresponds to one image swap
-    const sensitivity = 5.0;
-    int delta = (dx / sensitivity).round();
+  void setPrecached(bool value) {
+    state = state.copyWith(isPrecached: value);
+  }
 
-    int newIndex = state.currentIndex + delta;
-
-    // Wrap around 1-50
-    if (newIndex > 50) newIndex = 1;
-    if (newIndex < 1) newIndex = 50;
-
-    if (newIndex != state.currentIndex) {
-      state = state.copyWith(currentIndex: newIndex);
+  void updateIndex(int index) {
+    if (state.currentIndex != index) {
+      state = state.copyWith(currentIndex: index);
     }
   }
 
   void setZoom(double zoom) {
-    state = state.copyWith(zoomLevel: zoom.clamp(1.0, 3.0));
+    state = state.copyWith(zoomLevel: zoom.clamp(1.0, 5.0));
   }
 
   void toggleColor(Color? color) {

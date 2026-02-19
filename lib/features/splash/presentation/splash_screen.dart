@@ -70,7 +70,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -98,8 +97,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       position: _slideAnimation,
                       child: Column(
                         children: [
-                          const AppLogo(size: 80),
-                          SizedBox(height: 40.h),
+                          // const AppLogo(size: 80),
+                          // SizedBox(height: 40.h),
                           Hero(
                             tag: 'car-preview',
                             child: Image.asset(

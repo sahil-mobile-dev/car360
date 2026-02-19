@@ -1,12 +1,11 @@
 import 'dart:math';
+import 'package:car_360/features/viewer/presentation/viewer_view_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:car_360/features/viewer/presentation/viewer_view_model.dart';
 import 'package:go_router/go_router.dart';
 import 'package:imageview360/imageview360.dart';
-import 'package:car_360/core/widgets/app_logo.dart';
 
 class ViewerScreen extends ConsumerStatefulWidget {
   const ViewerScreen({super.key});
@@ -15,14 +14,16 @@ class ViewerScreen extends ConsumerStatefulWidget {
   ConsumerState<ViewerScreen> createState() => _ViewerScreenState();
 }
 
-class _ViewerScreenState extends ConsumerState<ViewerScreen> {
+class _ViewerScreenState extends ConsumerState<ViewerScreen>
+    with SingleTickerProviderStateMixin {
   final List<ImageProvider> _imageList = [];
-  bool _imagePrecached = false;
+  final bool _isDebugMode = false; // Debug mode disabled
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_imagePrecached) {
+    final isPrecached = ref.read(viewerViewModelProvider).isPrecached;
+    if (!isPrecached) {
       _precacheImages();
     }
   }
@@ -34,33 +35,25 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
       await precacheImage(imageProvider, context);
     }
     if (mounted) {
-      setState(() {
-        _imagePrecached = true;
-      });
+      ref.read(viewerViewModelProvider.notifier).setPrecached(true);
     }
   }
 
   @override
   void initState() {
     super.initState();
-    // Lock to landscape mode
+    // Force Landscape for Viewer
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    // Hide status bars for immersive experience
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   void dispose() {
-    // Restore orientations and UI mode
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // Reset to Portrait on exit
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -76,42 +69,59 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
         children: [
           // 360 Viewer Area
           Center(
-            child: !_imagePrecached
+            child: !state.isPrecached
                 ? const CircularProgressIndicator(color: Colors.white)
-                : InteractiveViewer(
-                    minScale: 1.0,
-                    maxScale: 3.0,
-                    onInteractionUpdate: (details) {
-                      // We could use this for zoom if we wanted to manage zoom via state
-                      // but for now let InteractiveViewer handle standard pinch
-                    },
-                    child: ColorFiltered(
-                      colorFilter: state.colorFilter != null
-                          ? ColorFilter.mode(
-                              state.colorFilter!,
-                              BlendMode.modulate,
-                            )
-                          : const ColorFilter.mode(
-                              Colors.transparent,
-                              BlendMode.dst,
-                            ),
-                      child: Hero(
-                        tag: 'car-preview',
-                        child: ImageView360(
-                          key: UniqueKey(),
-                          imageList: _imageList,
-                          autoRotate: false,
-                          rotationCount: 1,
-                          swipeSensitivity: 2,
-                          allowSwipeToRotate: true,
-                          onImageIndexChanged: (index) {
-                            // Sync with our state if needed, but the package handles it internally
-                          },
-                        ),
+                : AspectRatio(
+                    aspectRatio: 16 / 9, // Lock to image aspect ratio (16:9)
+                    child: InteractiveViewer(
+                      // minScale: 1.0,
+                      // maxScale: 1.0, // Zoom Disabled
+                      // panEnabled: false,
+                      // scaleEnabled: false, // Zoom Disabled
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              ImageView360(
+                                key: const ValueKey('viewer360'),
+                                imageList: _imageList,
+                                autoRotate: false,
+                                rotationCount: 1,
+                                swipeSensitivity: 2,
+                                allowSwipeToRotate: true,
+                                onImageIndexChanged: (index) {
+                                  if (index != null) {
+                                    viewModel.updateIndex(index);
+                                  }
+                                },
+                              ),
+                              // Hotspots Overlay
+                              ..._buildHotspots(
+                                state.currentIndex,
+                                constraints,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
           ),
+          // Debug Overlay
+          if (_isDebugMode)
+            Positioned(
+              top: 50,
+              left: 20,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.black54,
+                child: Text(
+                  'Frame: ${state.currentIndex}',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ),
 
           // HUD / Controls
           Positioned(
@@ -129,7 +139,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
 
           // Rotation Indicator
           Positioned(
-            bottom: min(30.h, 15.w), // Adjust for narrow landscape
+            bottom: min(30.h, 15.w),
             left: 0,
             right: 0,
             child: Center(
@@ -139,7 +149,7 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
                   Icon(Icons.swipe, color: Colors.white70, size: 20.sp),
                   SizedBox(height: 4.h),
                   Text(
-                    'Drag horizontally to rotate',
+                    'Rotate horizontally',
                     style: TextStyle(color: Colors.white70, fontSize: 10.sp),
                   ),
                 ],
@@ -147,7 +157,8 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
             ),
           ),
 
-          // Color Toggles
+          // Color Toggles (Commented Out as requested)
+          /*
           Positioned(
             right: 15.w,
             top: 0,
@@ -192,44 +203,114 @@ class _ViewerScreenState extends ConsumerState<ViewerScreen> {
               ),
             ),
           ),
+          */
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildHotspots(
+    int currentImageIndex,
+    BoxConstraints constraints,
+  ) {
+    final List<_HotspotData> hotspots = [
+      _HotspotData(
+        framePositions: {
+          // Engine (Visible on Front F0-F2, F48-F49)
+          // 48: const Offset(0.50, 0.35),
+          // 49: const Offset(0.50, 0.35),
+          0: const Offset(0.50, 0.35),
+          1: const Offset(0.50, 0.35),
+          2: const Offset(0.50, 0.35),
+        },
+        label: 'Side-Door',
+        description: 'Side Door Details',
+      ),
+    ];
+
+    return hotspots
+        .where((h) => h.framePositions.containsKey(currentImageIndex))
+        .map((h) {
+      final position = h.framePositions[currentImageIndex]!;
+      return Positioned(
+        left: constraints.maxWidth * position.dx,
+        top: constraints.maxHeight * position.dy,
+        child: _HotspotMarker(onTap: () => _showHotspotInfo(h)),
+      );
+    }).toList();
+  }
+
+  void _showHotspotInfo(_HotspotData hotspot) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(hotspot.label),
+        content: Text(hotspot.description),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ColorButton extends StatelessWidget {
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final bool isDefault;
+class _HotspotData {
+  final Map<int, Offset> framePositions;
+  final String label;
+  final String description;
 
-  const _ColorButton({
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-    this.isDefault = false,
+  _HotspotData({
+    required this.framePositions,
+    required this.label,
+    required this.description,
   });
+}
+
+class _HotspotMarker extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _HotspotMarker({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.all(2.w),
+        width: 24.w,
+        height: 24.w,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: 2.w,
-          ),
+          color: Colors.blue.withOpacity(0.2), // Static outer ring
         ),
-        child: CircleAvatar(
-          backgroundColor: color,
-          radius: 14.r,
-          child: isDefault
-              ? Icon(Icons.close, size: 14.sp, color: Colors.black)
-              : null,
+        child: Center(
+          child: Container(
+            width: 14.w,
+            height: 14.w,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 4,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Container(
+                width: 6.w,
+                height: 6.w,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
