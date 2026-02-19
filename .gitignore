@@ -1,0 +1,60 @@
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Generated files (build_runner)
+*.g.dart
+*.freezed.dart
+
+# Symbolication logging
+util/symbolication/
+
+# Android
+.gradle/
+local.properties
+*.kwks
+*.keystore
+*.jks
+project.properties
+android/app/build/
+
+# iOS/macOS
+Pods/
+.generated/
+*.xcworkspace
+!default.xcworkspace
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.xcuserstate
+*.xccheckout
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# FVM
+.fvm/
+fvm_config.json
+
+# Tooling
+.agent/
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Environment variables
+.env*
+!.env.example
+
+# OS related
+.DS_Store
+Thumbs.db
